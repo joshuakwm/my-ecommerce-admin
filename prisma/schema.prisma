@@ -1,3 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 model Customer {
   customer_id        Int       @id @default(autoincrement())
   name              String
@@ -8,6 +17,7 @@ model Customer {
   newsletter_opt_in Boolean   @default(false)
   subscription_status String  @default("unsubscribed")
   orders            Order[]
+  subscriptionHistories SubscriptionHistory[] // Add this line
 }
 
 model Product {

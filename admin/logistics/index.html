@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics Partners</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Logistics Partners</h1>
+        </header>
+        <main>
+            <section class="partner-listing">
+                <h2>Logistics Partners</h2>
+                <button class="add-partner-btn">Add Partner</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Region</th>
+                            <th>Contact Details</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partner-list">
+                        <tr>
+                            <td>1</td>
+                            <td>Speedy Logistics</td>
+                            <td>North America</td>
+                            <td>Email: contact@speedy.com, Phone: 1-800-SPEEDY</td>
+                            <td><button>Edit</button> <button>Delete</button></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Global Couriers</td>
+                            <td>Europe</td>
+                            <td>Email: europe@global.com, Phone: +44 20 7946 0000</td>
+                            <td><button>Edit</button> <button>Delete</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            <div class="add-edit-partner-modal" style="display:none;">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2>Add/Edit Logistics Partner</h2>
+                    <form id="add-edit-partner-form">
+                        <input type="hidden" id="partner-id">
+                        <div class="input-group">
+                            <label for="partner-name">Name</label>
+                            <input type="text" id="partner-name" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="partner-region">Region</label>
+                            <input type="text" id="partner-region">
+                        </div>
+                        <div class="input-group">
+                            <label for="partner-contact">Contact Details</label>
+                            <textarea id="partner-contact"></textarea>
+                        </div>
+                        <button type="submit">Save Partner</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+        <footer>
+            <p>&copy; 2024 E-Commerce Platform</p>
+        </footer>
+    </div>
+    <script src="../assets/js/logistics.js"></script>
+</body>
+</html>

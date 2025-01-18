@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Reports</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sales Reports</h1>
+        </header>
+        <main>
+            <section class="report-generation">
+                <h2>Generate Report</h2>
+                <form id="generate-report-form">
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date" required aria-label="Start Date">
+                    <label for="end-date">End Date:</label>
+                    <input type="date" id="end-date" required aria-label="End Date">
+                    <button type="submit">Generate Report</button>
+                </form>
+            </section>
+            <section class="report-listing">
+                <h2>Report History</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Report ID</th>
+                            <th>Date Range</th>
+                            <th>Total Sales</th>
+                            <th>Order Count</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-list">
+                        <tr>
+                            <td><a href="#">20240710-20240717</a></td>
+                            <td>July 10, 2024 - July 17, 2024</td>
+                            <td>$1250.00</td>
+                            <td>30</td>
+                            <td><button>Download (CSV)</button> <button>Download (PDF)</button></td>
+                        </tr>
+                        <tr>
+                            <td><a href="#">20240701-20240709</a></td>
+                            <td>July 1, 2024 - July 9, 2024</td>
+                            <td>$980.00</td>
+                            <td>22</td>
+                            <td><button>Download (CSV)</button> <button>Download (PDF)</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            <section class="report-visualization">
+                <h2>Sales Trends</h2>
+                <div id="sales-chart">
+                    {/* Sales chart will be rendered here */}
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2024 E-Commerce Platform</p>
+        </footer>
+    </div>
+    <script src="../assets/js/reports.js"></script>
+</body>
+</html>

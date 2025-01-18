@@ -1,0 +1,180 @@
+Admin Panel Design Document for E-Commerce Website
+
+1. Dashboard
+
+Overview
+
+The Dashboard provides a summary view of the e-commerce site’s key metrics and recent activities.
+
+Features:
+
+Key Metrics: Display total products, customers, orders, and sales.
+
+Recent Orders: Show the latest 5-10 orders with details like order ID, customer name, date, status, and total amount.
+
+Shortcuts: Provide buttons for quick actions: Add Product, View Orders, Generate Reports.
+
+Design:
+
+A clean and responsive layout with cards for metrics.
+
+A table for recent orders with pagination for additional records.
+
+Shortcut buttons styled prominently for easy access.
+
+Actions:
+
+Clicking a metric navigates to its respective detailed page.
+
+Shortcut buttons link directly to their respective forms or pages.
+
+2. Products
+
+Overview
+
+The Products tab is used to manage the product catalog, including adding, updating, and deleting products.
+
+Features:
+
+Product Listing: Display all products with fields like name, category, price, stock, and creation date.
+
+Search and Filter: Allow filtering by name, category, or stock status.
+
+Add Product: A form to input product details.
+
+Edit Product: Option to update existing product information.
+
+Delete Product: Ability to remove products.
+
+Design:
+
+A table to list products with editable columns.
+
+A floating "Add Product" button.
+
+A modal form for adding or editing products.
+
+Actions:
+
+Clicking "Add Product" opens the modal form.
+
+Edit/Delete actions are available as icons on each product row.
+
+3. Customers
+
+Overview
+
+The Customers tab helps manage customer details and view engagement.
+
+Features:
+
+Customer Listing: Show details like name, email, phone, address, registration date, and newsletter subscription status.
+
+Search and Filter: Filter by name, email, or subscription status.
+
+Customer Profile: Detailed view of a customer’s history and orders.
+
+Design:
+
+A searchable table with clickable rows for customer profiles.
+
+A profile page displaying customer details and order history.
+
+Actions:
+
+Clicking a row navigates to the customer’s profile.
+
+Bulk actions like exporting customer data.
+
+4. Logistics Partners
+
+Overview
+
+The Logistics Partners tab manages delivery service providers.
+
+Features:
+
+Partner Listing: Display partner name, region, and contact details.
+
+Add Partner: Form to add new logistics partners.
+
+Edit/Delete Partner: Modify or remove existing partners.
+
+Design:
+
+A table listing logistics partners.
+
+A floating "Add Partner" button.
+
+Modal forms for adding or editing partners.
+
+Actions:
+
+Clicking "Add Partner" opens the modal form.
+
+Edit/Delete actions are icons on each row.
+
+5. Orders
+
+Overview
+
+The Orders tab provides detailed tracking and management of orders.
+
+Features:
+
+Order Listing: Show order ID, customer name, status, total amount, and date.
+
+Search and Filter: Filter by customer name, status, or date range.
+
+Order Details: View detailed information about an order, including items and logistics details.
+
+Update Order Status: Modify the status of an order.
+
+Design:
+
+A table with sortable columns.
+
+Detailed view accessible by clicking an order.
+
+Dropdown menu to update order status directly.
+
+Actions:
+
+Clicking an order navigates to its details.
+
+Bulk actions like exporting order data.
+
+6. Sales Reports
+
+Overview
+
+The Sales Reports tab provides tools for generating and viewing sales analytics.
+
+Features:
+
+Report Generation: Specify a date range to generate reports.
+
+Report Listing: List previously generated reports with their date range, total sales, and order count.
+
+Export Report: Download reports in CSV or PDF format.
+
+Visual Charts: Display sales trends and summaries using charts.
+
+Design:
+
+A form for generating reports.
+
+A table listing generated reports with download links.
+
+A section for visualizing key metrics with bar and line charts.
+
+Actions:
+
+Clicking "Generate Report" processes the report and displays it.
+
+Download actions are available as buttons for each report.
+
+Conclusion
+
+This design ensures a clean and efficient admin interface, supporting critical e-commerce operations. The layout is optimized for usability, and features are designed to enhance productivity for administrators.
+

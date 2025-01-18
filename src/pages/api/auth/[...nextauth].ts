@@ -12,7 +12,7 @@ export default NextAuth({
       authorize: async (credentials) => {
         // Add your own logic for authenticating users
         const user = { id: 1, name: "John Doe", email: "john@example.com" };
-        if (credentials.username === "admin" && credentials.password === "admin") {
+        if (credentials.username === "admin" && credentials.password === "abc123") {
           return user;
         } else {
           return null;

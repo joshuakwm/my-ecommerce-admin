@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - E-Commerce Admin</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <h1>Dashboard</h1>
+    <div class="quick-actions">
+      <button id="add-product-btn" class="btn-primary">
+        <i class="fas fa-plus"></i> Add Product
+      </button>
+      <button id="view-orders-btn" class="btn-secondary">
+        <i class="fas fa-list"></i> View Orders
+      </button>
+      <button id="generate-report-btn" class="btn-secondary">
+        <i class="fas fa-chart-line"></i> Generate Report
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-content">
+    <section class="stats-section">
+      <h2>Key Metrics</h2>
+      <div id="dashboard-stats" class="stats-grid">
+        <!-- Stats will be populated by dashboard.js -->
+      </div>
+    </section>
+
+    <section class="recent-orders">
+      <h2>Recent Orders</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="recent-orders">
+          <!-- Recent orders will be populated by dashboard.js -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="../assets/js/dashboard.js"></script>
+  <script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+</body>
+</html>
