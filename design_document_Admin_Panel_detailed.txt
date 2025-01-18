@@ -1,0 +1,1910 @@
+Detailed Technical Design Specification: E-commerce Admin Panel
+1. Overall Architecture
+Framework: Next.js (with Typescript)
+
+Styling: Tailwind CSS
+
+State Management: React Context API (for simple global state, like theme) or Zustand (for more complex state)
+
+Data Fetching: fetch API (or a library like axios) for communication with the backend API.
+
+UI Components: Reusable React components.
+
+Form Handling: React Hook Form for controlled forms, and Zod for schema validation.
+
+Database Interaction: Assume backend API exposes REST endpoints.
+
+2. Folder Structure
+admin/
+├── components/
+│   ├── Dashboard/
+│   │   ├── KeyMetricsCard.tsx
+│   │   ├── RecentOrdersTable.tsx
+│   │   └── DashboardShortcuts.tsx
+│   ├── Products/
+│   │   ├── ProductTable.tsx
+│   │   ├── AddEditProductModal.tsx
+│   │   └── ProductFilter.tsx
+│   ├── Customers/
+│   │   ├── CustomerTable.tsx
+│   │   ├── CustomerProfile.tsx
+│   │   └── CustomerFilter.tsx
+│   ├── LogisticsPartners/
+│   │   ├── PartnerTable.tsx
+│   │   ├── AddEditPartnerModal.tsx
+│   │   └── PartnerFilter.tsx
+│   ├── Orders/
+│   │   ├── OrderTable.tsx
+│   │   ├── OrderDetails.tsx
+│   │   └── OrderFilter.tsx
+│   ├── SalesReports/
+│   │   ├── ReportGenerationForm.tsx
+│   │   ├── ReportTable.tsx
+│   │   └── ReportChart.tsx
+│   ├── UI/
+│   │   ├── Button.tsx
+│   │   ├── Input.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Table.tsx
+│   │   └── Pagination.tsx
+│   ├── Layout/
+│   │   ├── AdminLayout.tsx
+│   │   └── Sidebar.tsx
+│   ├── Global/
+│       ├── ThemeContext.tsx
+│   └── common.ts
+├── hooks/
+│   └── useFetch.ts
+├── pages/
+│   └── admin/
+│       └── index.tsx
+├── styles/
+│   └── globals.css
+├── utils/
+│   └── api.ts
+├── types/
+    ├── index.ts
+└── public/
+    └── ... (static assets)
+Use code with caution.
+3. Global Styles (styles/globals.css)
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Mode */
+  --background-light: #F7F9FC;
+  --text-light: #2C2C2C;
+  --primary-accent: #4CAF50;
+  --secondary-accent: #FFC107;
+  --link-light: #007BFF;
+  --card-light: #FFFFFF;
+  --footer-light: #F1F3F6;
+
+  /* Dark Mode */
+  --background-dark: #121212;
+  --text-dark: #FFFFFF;
+  --link-dark: #80BFFF;
+  --card-dark: #1E1E1E;
+  --footer-dark: #181818;
+}
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif; /* or your preferred font */
+}
+/* Theme based styles will be dynamically applied via javascript with css variables*/
+Use code with caution.
+Css
+4. Shared Types (types/index.ts)
+export interface Product {
+  product_id: number;
+  name: string;
+  category: string;
+  price: number;
+  stock_quantity: number;
+  description: string;
+  created_at: string;
+}
+
+export interface Customer {
+    customer_id: number;
+    name: string;
+    email: string;
+    phone?: string;
+    address: any;
+    registration_date: string;
+    newsletter_opt_in: boolean;
+    subscription_status: string;
+}
+
+export interface LogisticsPartner {
+  partner_id: number;
+  name: string;
+  region?: string;
+  contact_details: any;
+}
+
+export interface Order {
+    order_id: number;
+    customer_id?: number;
+    status: string;
+    total_amount: number;
+    created_at: string;
+}
+export interface OrderItem {
+    order_item_id: number;
+    order_id: number;
+    product_id: number;
+    quantity: number;
+    price: number;
+}
+export interface SalesReport {
+    report_id: number;
+    date_range: any;
+    total_sales: number;
+    orders_count: number;
+}
+export interface ApiResponse<T> {
+    data: T;
+    error: string | null;
+    loading: boolean;
+}
+
+export interface Option {
+    value: string;
+    label: string;
+}
+Use code with caution.
+TypeScript
+5. API Utility (utils/api.ts)
+This file would be used to configure the base API url and any authorization headers that need to be added to the requests. This can be extended to include custom logic and also handle errors such as 401, 403, 500 etc..
+
+const API_BASE_URL = 'http://localhost:8080'; // Replace with your actual API URL
+
+interface RequestOptions extends RequestInit {
+    headers?: HeadersInit;
+    body?: any;
+}
+
+async function apiFetch<T>(url: string, options: RequestOptions = {}): Promise<T> {
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+    };
+    const requestOptions: RequestOptions = {
+        ...options,
+        headers: headers
+    }
+  if(options.body){
+    requestOptions.body = JSON.stringify(options.body);
+  }
+    try {
+        const response = await fetch(`${API_BASE_URL}${url}`, requestOptions);
+        if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message;
+            } catch (e) {
+                // if response cannot be parsed as json, use default message
+            }
+           throw new Error(errorMessage);
+        }
+        return await response.json();
+    } catch (error:any) {
+        console.error('API Error:', error);
+       throw error;
+    }
+}
+
+export default apiFetch;
+Use code with caution.
+TypeScript
+6. Use Fetch Hook (hooks/useFetch.ts)
+import { useState, useEffect, useCallback } from 'react';
+import apiFetch from '@/utils/api';
+import { ApiResponse } from '@/types';
+
+const useFetch = <T>(url: string): ApiResponse<T> => {
+    const [data, setData] = useState<T | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const result:T = await apiFetch<T>(url);
+          setData(result);
+        } catch (err:any) {
+          setError(err.message || 'Failed to fetch data');
+          setData(null);
+        } finally {
+          setLoading(false);
+        }
+      }, [url]);
+    useEffect(() => {
+        fetchData();
+    }, [url, fetchData]);
+    return { data: data as T, error, loading };
+};
+
+export default useFetch;
+Use code with caution.
+TypeScript
+7. Admin Layout (components/Layout/AdminLayout.tsx)
+This component will handle the overall layout of the admin panel.
+
+import React, { useState, useContext } from 'react';
+import Sidebar from './Sidebar';
+import { ThemeContext } from '../Global/ThemeContext';
+
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const { theme } = useContext(ThemeContext);
+  return (
+    <div className={`flex h-screen bg-[var(--background-${theme})] text-[var(--text-${theme})]`}>
+      <Sidebar />
+      <div className="flex-1 p-4 overflow-y-auto">
+         {children}
+      </div>
+    </div>
+  );
+};
+
+export default AdminLayout;
+Use code with caution.
+Tsx
+8. Admin Panel Sidebar (components/Layout/Sidebar.tsx)
+import React, {useContext} from 'react';
+import Link from 'next/link';
+import { ThemeContext } from '../Global/ThemeContext';
+
+const Sidebar: React.FC = () => {
+  const { theme, toggleTheme } = useContext(ThemeContext);
+    return (
+      <div className={`w-64 bg-[var(--card-${theme})] p-4 border-r border-gray-200 dark:border-gray-700`}>
+        <h2 className="text-2xl font-bold mb-6">Admin Panel</h2>
+        <ul className="space-y-2">
+          <li>
+            <Link href="/admin" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                Dashboard
+            </Link>
+          </li>
+            <li>
+                <Link href="/admin?tab=products" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                    Products
+                </Link>
+            </li>
+            <li>
+                <Link href="/admin?tab=customers" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                    Customers
+                </Link>
+            </li>
+            <li>
+                <Link href="/admin?tab=logistics" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                    Logistics Partners
+                </Link>
+            </li>
+          <li>
+            <Link href="/admin?tab=orders" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+              Orders
+            </Link>
+          </li>
+          <li>
+            <Link href="/admin?tab=reports" className="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                Sales Reports
+              </Link>
+          </li>
+        </ul>
+        <div className="mt-6 border-t border-gray-300 dark:border-gray-600 pt-4">
+        <button
+            onClick={toggleTheme}
+            className="w-full p-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+           {theme === "light" ? "Dark Mode" : "Light Mode"}
+          </button>
+      </div>
+      </div>
+    );
+  };
+
+export default Sidebar;
+Use code with caution.
+Tsx
+9. Theme Context (components/Global/ThemeContext.tsx)
+import React, { createContext, useState, ReactNode } from 'react';
+
+interface ThemeContextType {
+    theme: 'light' | 'dark';
+    toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+    theme: 'light',
+    toggleTheme: () => {}
+});
+
+interface ThemeProviderProps {
+    children: ReactNode;
+}
+
+const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+    const toggleTheme = () => {
+      setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    };
+    return (
+        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+          {children}
+        </ThemeContext.Provider>
+      );
+};
+
+export { ThemeContext, ThemeProvider };
+Use code with caution.
+Tsx
+10. Common Utilities (components/common.ts)
+export const formatDate = (dateString:string) => {
+  try {
+    const date = new Date(dateString);
+    const formatted = date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      });
+      return formatted;
+  } catch (e) {
+    return dateString;
+  }
+}
+Use code with caution.
+Ts
+11. Admin Panel Page (pages/admin/index.tsx)
+This page will use the different admin panels based on the tab query parameter from the url.
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+import AdminLayout from '@/components/Layout/AdminLayout';
+import Dashboard from '@/components/Dashboard/Dashboard';
+import ProductsPanel from '@/components/Products/ProductsPanel';
+import CustomersPanel from '@/components/Customers/CustomersPanel';
+import LogisticsPanel from '@/components/LogisticsPartners/LogisticsPanel';
+import OrdersPanel from '@/components/Orders/OrdersPanel';
+import SalesReportsPanel from '@/components/SalesReports/SalesReportsPanel';
+import { ThemeProvider } from '@/components/Global/ThemeContext';
+
+
+const AdminPage: React.FC = () => {
+  const router = useRouter();
+  const { tab } = router.query;
+
+  return (
+   <ThemeProvider>
+       <AdminLayout>
+        {tab === "products" ? <ProductsPanel /> : null}
+        {tab === "customers" ? <CustomersPanel /> : null}
+        {tab === "logistics" ? <LogisticsPanel /> : null}
+        {tab === "orders" ? <OrdersPanel /> : null}
+        {tab === "reports" ? <SalesReportsPanel /> : null}
+        {!tab ? <Dashboard /> : null}
+       </AdminLayout>
+   </ThemeProvider>
+  );
+};
+
+export default AdminPage;
+Use code with caution.
+Tsx
+12. Dashboard Panel (components/Dashboard/Dashboard.tsx)
+import React from 'react';
+import KeyMetricsCard from './KeyMetricsCard';
+import RecentOrdersTable from './RecentOrdersTable';
+import DashboardShortcuts from './DashboardShortcuts';
+import useFetch from '@/hooks/useFetch';
+import { Order, Product, Customer } from '@/types';
+
+const Dashboard: React.FC = () => {
+    const { data: orders, error: ordersError, loading: ordersLoading } = useFetch<Order[]>('/orders');
+    const { data: products, error: productsError, loading: productsLoading } = useFetch<Product[]>('/products');
+    const { data: customers, error: customersError, loading: customersLoading } = useFetch<Customer[]>('/customers');
+
+    if (ordersLoading || productsLoading || customersLoading) {
+        return <div>Loading...</div>;
+    }
+
+    if (ordersError || productsError || customersError) {
+        return <div>Error loading data.</div>
+    }
+
+  const totalOrders = orders ? orders.length : 0;
+  const totalProducts = products ? products.length : 0;
+  const totalCustomers = customers ? customers.length : 0;
+  const totalSales = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
+  const recentOrders = orders?.slice(0, 5) || [];
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <KeyMetricsCard title="Total Products" value={totalProducts} />
+        <KeyMetricsCard title="Total Customers" value={totalCustomers} />
+        <KeyMetricsCard title="Total Orders" value={totalOrders} />
+          <KeyMetricsCard title="Total Sales" value={totalSales} prefix="$" />
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">Recent Orders</h3>
+          <RecentOrdersTable orders={recentOrders} />
+      </div>
+
+      <div>
+        <h3 className="text-xl font-semibold mb-2">Quick Actions</h3>
+          <DashboardShortcuts />
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+Use code with caution.
+Tsx
+12.1. Dashboard Key Metrics (components/Dashboard/KeyMetricsCard.tsx)
+import React from 'react';
+
+interface KeyMetricsCardProps {
+    title: string;
+    value: number;
+    prefix?: string;
+    suffix?: string;
+}
+
+const KeyMetricsCard: React.FC<KeyMetricsCardProps> = ({ title, value, prefix, suffix }) => {
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <p className="text-3xl font-bold">{prefix}{value}{suffix}</p>
+    </div>
+  );
+};
+
+export default KeyMetricsCard;
+Use code with caution.
+Tsx
+12.2. Dashboard Recent Orders (components/Dashboard/RecentOrdersTable.tsx)
+import React from 'react';
+import { Order } from '@/types';
+import { formatDate } from '../common';
+
+interface RecentOrdersTableProps {
+  orders: Order[];
+}
+
+const RecentOrdersTable: React.FC<RecentOrdersTableProps> = ({ orders }) => {
+  return (
+    <div className="overflow-x-auto">
+    <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+      <thead>
+        <tr>
+          <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Order ID</th>
+          <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Date</th>
+          <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Status</th>
+          <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {orders.map((order) => (
+          <tr key={order.order_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+            <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.order_id}</td>
+            <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(order.created_at)}</td>
+              <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.status}</td>
+            <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${order.total_amount}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  );
+};
+
+export default RecentOrdersTable;
+Use code with caution.
+Tsx
+12.3. Dashboard Shortcuts (components/Dashboard/DashboardShortcuts.tsx)
+import React from 'react';
+import { Button } from '../UI/Button';
+import Link from 'next/link';
+
+const DashboardShortcuts: React.FC = () => {
+  return (
+    <div className="space-x-4">
+         <Link href="/admin?tab=products">
+              <Button>Add Product</Button>
+         </Link>
+         <Link href="/admin?tab=orders">
+              <Button>View Orders</Button>
+         </Link>
+         <Link href="/admin?tab=reports">
+              <Button>Generate Reports</Button>
+         </Link>
+    </div>
+  );
+};
+
+export default DashboardShortcuts;
+Use code with caution.
+Tsx
+13. Products Panel (components/Products/ProductsPanel.tsx)
+import React, { useState } from 'react';
+import ProductTable from './ProductTable';
+import AddEditProductModal from './AddEditProductModal';
+import { Button } from '../UI/Button';
+import { Product } from '@/types';
+import ProductFilter from './ProductFilter';
+import useFetch from '@/hooks/useFetch';
+
+const ProductsPanel: React.FC = () => {
+    const { data: products, error, loading, } = useFetch<Product[]>('/products')
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [filteredProducts, setFilteredProducts] = useState<Product[] | null>(null);
+
+  const handleAddProduct = () => {
+    setSelectedProduct(null);
+    setIsModalOpen(true);
+  };
+
+    if(loading){
+        return <div>Loading ...</div>
+    }
+    if(error){
+        return <div>Error loading Products.</div>
+    }
+
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  }
+
+    const handleProductFilter = (filtered:Product[]|null) => {
+       setFilteredProducts(filtered);
+    }
+  return (
+    <div>
+        <div className='flex justify-between items-center mb-4'>
+            <h2 className="text-2xl font-bold mb-4">Products</h2>
+           <Button onClick={handleAddProduct}>Add Product</Button>
+        </div>
+
+        <ProductFilter products={products} onFilter={handleProductFilter} />
+        <ProductTable products={filteredProducts || products || []} onEdit={handleEditProduct}  />
+      <AddEditProductModal isOpen={isModalOpen} onClose={handleCloseModal} product={selectedProduct} />
+    </div>
+  );
+};
+
+export default ProductsPanel;
+Use code with caution.
+Tsx
+13.1. Product Table (components/Products/ProductTable.tsx)
+import React from 'react';
+import { Product } from '@/types';
+import { Button } from '../UI/Button';
+import { formatDate } from '../common';
+interface ProductTableProps {
+  products: Product[];
+  onEdit: (product: Product) => void;
+}
+
+const ProductTable: React.FC<ProductTableProps> = ({ products, onEdit }) => {
+  return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+            <thead>
+            <tr>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">ID</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Name</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Category</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Price</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Stock</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Created At</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {products.map((product) => (
+                <tr key={product.product_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{product.product_id}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{product.name}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{product.category}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${product.price}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{product.stock_quantity}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(product.created_at)}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">
+                      <Button size='sm' onClick={() => onEdit(product)}>Edit</Button>
+                  </td>
+                </tr>
+            ))}
+            </tbody>
+        </table>
+      </div>
+  );
+};
+
+export default ProductTable;
+Use code with caution.
+Tsx
+13.2. Product Filter (components/Products/ProductFilter.tsx)
+import React, { useState, useEffect } from 'react';
+import { Product } from '@/types';
+import { Input } from '../UI/Input';
+import { Option } from '@/types';
+interface ProductFilterProps {
+  products: Product[];
+    onFilter: (filtered:Product[]|null) => void;
+}
+const ProductFilter: React.FC<ProductFilterProps> = ({ products, onFilter }) => {
+    const [nameFilter, setNameFilter] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
+    useEffect(() => {
+        if(products){
+             const categories = [...new Set(products.map(product => product.category))];
+            setCategoryOptions(categories.map(category => ({label: category, value: category})));
+        }
+    }, [products])
+
+    useEffect(() => {
+        if (products){
+            let filtered = products;
+             if (nameFilter) {
+                filtered = filtered.filter(product => product.name.toLowerCase().includes(nameFilter.toLowerCase()));
+            }
+             if(categoryFilter){
+                filtered = filtered.filter(product => product.category === categoryFilter);
+             }
+             onFilter(filtered.length > 0 ? filtered : null);
+        } else {
+            onFilter(null);
+        }
+
+    }, [nameFilter, categoryFilter, products, onFilter]);
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNameFilter(e.target.value);
+    };
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setCategoryFilter(e.target.value);
+    }
+
+
+  return (
+    <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex-1">
+            <Input type="text" placeholder="Filter by name" value={nameFilter} onChange={handleNameChange} />
+          </div>
+        <div className="flex-1">
+              <select className='border rounded p-2 w-full bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)]'
+                  value={categoryFilter} onChange={handleCategoryChange}
+               >
+                <option value="">Filter by Category</option>
+                  {categoryOptions?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+        </div>
+    </div>
+  );
+};
+
+export default ProductFilter;
+Use code with caution.
+Tsx
+13.3. Add/Edit Product Modal (components/Products/AddEditProductModal.tsx)
+import React, { useState, useEffect } from 'react';
+import { Modal } from '../UI/Modal';
+import { Input } from '../UI/Input';
+import { Button } from '../UI/Button';
+import { Product } from '@/types';
+import apiFetch from '@/utils/api';
+
+interface AddEditProductModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  product: Product | null;
+}
+
+const AddEditProductModal: React.FC<AddEditProductModalProps> = ({ isOpen, onClose, product }) => {
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [price, setPrice] = useState('');
+  const [stockQuantity, setStockQuantity] = useState('');
+  const [description, setDescription] = useState('');
+  const [isEdit, setIsEdit] = useState(false);
+
+  useEffect(() => {
+      if (product) {
+        setIsEdit(true);
+        setName(product.name);
+        setCategory(product.category);
+        setPrice(product.price.toString());
+          setStockQuantity(product.stock_quantity.toString());
+        setDescription(product.description);
+      } else {
+        setIsEdit(false);
+        setName('');
+          setCategory('');
+          setPrice('');
+        setStockQuantity('');
+          setDescription('');
+      }
+  }, [product]);
+  const handleSubmit = async (event: React.FormEvent) => {
+      event.preventDefault();
+      const productData = {
+          name: name,
+          category: category,
+          price: parseFloat(price),
+          stock_quantity: parseInt(stockQuantity),
+          description: description
+      }
+      try {
+            if(isEdit && product){
+              await apiFetch(`/products/${product.product_id}`, { method: 'PUT', body:productData})
+              alert('Product updated successfully!');
+          } else {
+            await apiFetch('/products', { method: 'POST', body: productData })
+              alert('Product added successfully!');
+          }
+        onClose();
+      } catch (error:any){
+          alert(error.message || 'Error saving product');
+      }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Product' : 'Add Product'}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+          <div>
+              <Input type="text" placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} required />
+          </div>
+        <div>
+          <Input type="number" placeholder="Price" value={price} onChange={(e) => setPrice(e.target.value)} required />
+        </div>
+          <div>
+              <Input type="number" placeholder="Stock Quantity" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} required />
+          </div>
+        <div>
+          <Input type="text" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="flex justify-end">
+          <Button type="submit">{isEdit ? 'Update Product' : 'Add Product'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+export default AddEditProductModal;
+
+
+14. Customers Panel (components/Customers/CustomersPanel.tsx)
+import React, { useState } from 'react';
+import CustomerTable from './CustomerTable';
+import CustomerProfile from './CustomerProfile';
+import { Customer } from '@/types';
+import useFetch from '@/hooks/useFetch';
+import CustomerFilter from './CustomerFilter';
+
+const CustomersPanel: React.FC = () => {
+    const { data: customers, error, loading } = useFetch<Customer[]>('/customers');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[] | null>(null)
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+
+    if (loading) {
+      return <div>Loading ...</div>
+    }
+    if(error){
+        return <div>Error loading customer data.</div>
+    }
+    const handleCustomerFilter = (filtered:Customer[]|null) => {
+        setFilteredCustomers(filtered)
+    }
+
+  return (
+    <div>
+        <div className='flex justify-between items-center mb-4'>
+            <h2 className="text-2xl font-bold mb-4">Customers</h2>
+        </div>
+        <CustomerFilter customers={customers} onFilter={handleCustomerFilter} />
+        <div className='flex flex-wrap gap-4'>
+        <div className='flex-1 overflow-x-auto'>
+           <CustomerTable
+            customers={filteredCustomers || customers || []}
+            onSelect={handleCustomerSelect}
+        />
+        </div>
+          {selectedCustomer &&  <div className='flex-1'>
+                <CustomerProfile customer={selectedCustomer} />
+            </div>}
+        </div>
+    </div>
+  );
+};
+
+export default CustomersPanel;
+``````tsx
+import React from 'react';
+import { Customer } from '@/types';
+import { formatDate } from '../common';
+
+14.1 Customer Table (components/Customers/CustomerTable.tsx)
+import React from 'react';
+import { Customer } from '@/types';
+import { formatDate } from '../common';
+
+interface CustomerTableProps {
+  customers: Customer[];
+  onSelect: (customer: Customer) => void;
+}
+
+const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onSelect }) => {
+  return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+            <thead>
+            <tr>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">ID</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Name</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Email</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Phone</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Registration Date</th>
+              <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Newsletter</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Subscription</th>
+            </tr>
+            </thead>
+            <tbody>
+            {customers.map((customer) => (
+                <tr key={customer.customer_id}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => onSelect(customer)}
+                >
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.customer_id}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.name}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.email}</td>
+                   <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.phone}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(customer.registration_date)}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.newsletter_opt_in ? 'Yes' : 'No'}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{customer.subscription_status}</td>
+                </tr>
+            ))}
+            </tbody>
+        </table>
+      </div>
+  );
+};
+
+export default CustomerTable;
+Use code with caution.
+Tsx
+14.2 Customer Filter (components/Customers/CustomerFilter.tsx)
+import React, { useState, useEffect } from 'react';
+import { Customer } from '@/types';
+import { Input } from '../UI/Input';
+
+interface CustomerFilterProps {
+  customers: Customer[];
+    onFilter: (filtered:Customer[]|null) => void;
+}
+
+const CustomerFilter: React.FC<CustomerFilterProps> = ({ customers, onFilter }) => {
+    const [nameFilter, setNameFilter] = useState('');
+    const [emailFilter, setEmailFilter] = useState('');
+    const [subscriptionFilter, setSubscriptionFilter] = useState('');
+    const [subscriptionOptions, setSubscriptionOptions] = useState<string[]>([]);
+    useEffect(() => {
+        if(customers){
+          const statuses = [...new Set(customers.map(customer => customer.subscription_status))];
+          setSubscriptionOptions(statuses);
+        }
+    }, [customers]);
+
+    useEffect(() => {
+       if (customers) {
+            let filtered = customers;
+            if (nameFilter) {
+                filtered = filtered.filter(customer => customer.name.toLowerCase().includes(nameFilter.toLowerCase()));
+            }
+           if(emailFilter){
+               filtered = filtered.filter(customer => customer.email.toLowerCase().includes(emailFilter.toLowerCase()));
+           }
+           if(subscriptionFilter){
+               filtered = filtered.filter(customer => customer.subscription_status === subscriptionFilter)
+           }
+            onFilter(filtered.length > 0 ? filtered : null);
+       } else {
+           onFilter(null)
+       }
+
+
+    }, [nameFilter, emailFilter, subscriptionFilter, customers, onFilter]);
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNameFilter(e.target.value);
+    };
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEmailFilter(e.target.value);
+    }
+
+    const handleSubscriptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSubscriptionFilter(e.target.value)
+    };
+
+  return (
+    <div className="flex flex-wrap gap-4 mb-4">
+        <div className="flex-1">
+        <Input type="text" placeholder="Filter by name" value={nameFilter} onChange={handleNameChange} />
+        </div>
+        <div className="flex-1">
+             <Input type="text" placeholder="Filter by email" value={emailFilter} onChange={handleEmailChange} />
+        </div>
+        <div className="flex-1">
+           <select className='border rounded p-2 w-full bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)]'
+               value={subscriptionFilter} onChange={handleSubscriptionChange}
+           >
+             <option value="">Filter by Subscription Status</option>
+               {subscriptionOptions?.map(status => <option key={status} value={status}>{status}</option>)}
+           </select>
+        </div>
+    </div>
+  );
+};
+
+export default CustomerFilter;
+Use code with caution.
+Tsx
+14.3 Customer Profile (components/Customers/CustomerProfile.tsx)
+import React from 'react';
+import { Customer } from '@/types';
+import useFetch from '@/hooks/useFetch';
+import { Order } from '@/types';
+import { formatDate } from '../common';
+
+interface CustomerProfileProps {
+  customer: Customer;
+}
+
+const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer }) => {
+  const { data: customerOrders, error, loading } = useFetch<Order[]>(`/orders?customer_id=${customer.customer_id}`);
+
+  if(loading){
+      return <div>Loading order history...</div>
+  }
+    if(error){
+      return <div>Error loading order history.</div>
+    }
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+      <h3 className="text-xl font-semibold mb-4">Customer Profile</h3>
+      <p><span className='font-semibold'>Name:</span> {customer.name}</p>
+      <p><span className='font-semibold'>Email:</span> {customer.email}</p>
+       {customer.phone && <p><span className='font-semibold'>Phone:</span> {customer.phone}</p>}
+      <p><span className='font-semibold'>Registration Date:</span> {formatDate(customer.registration_date)}</p>
+      <p><span className='font-semibold'>Newsletter Opt-In:</span> {customer.newsletter_opt_in ? 'Yes' : 'No'}</p>
+      <p><span className='font-semibold'>Subscription Status:</span> {customer.subscription_status}</p>
+
+      <h4 className="text-lg font-semibold mt-4 mb-2">Order History</h4>
+        {customerOrders && customerOrders.length > 0 ?
+            <div className="overflow-x-auto">
+            <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+               <thead>
+                <tr>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Order ID</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Date</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Status</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Total Amount</th>
+                </tr>
+              </thead>
+                <tbody>
+                {customerOrders.map(order => (
+                  <tr key={order.order_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.order_id}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(order.created_at)}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.status}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${order.total_amount}</td>
+                  </tr>
+                ))}
+                </tbody>
+           </table>
+             </div>
+             : <p>No order history found for this customer.</p>}
+    </div>
+  );
+};
+
+export default CustomerProfile;
+Use code with caution.
+Tsx
+15. Logistics Partners Panel (components/LogisticsPartners/LogisticsPanel.tsx)
+import React, { useState } from 'react';
+import PartnerTable from './PartnerTable';
+import AddEditPartnerModal from './AddEditPartnerModal';
+import { Button } from '../UI/Button';
+import { LogisticsPartner } from '@/types';
+import useFetch from '@/hooks/useFetch';
+import PartnerFilter from './PartnerFilter';
+
+const LogisticsPanel: React.FC = () => {
+  const { data: partners, error, loading } = useFetch<LogisticsPartner[]>('/logistics-partners');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<LogisticsPartner | null>(null);
+    const [filteredPartners, setFilteredPartners] = useState<LogisticsPartner[] | null>(null);
+
+  const handleAddPartner = () => {
+    setSelectedPartner(null);
+    setIsModalOpen(true);
+  };
+
+    if (loading) {
+        return <div>Loading ...</div>
+    }
+    if(error){
+        return <div>Error loading logistics partners.</div>
+    }
+
+
+  const handleEditPartner = (partner: LogisticsPartner) => {
+    setSelectedPartner(partner);
+    setIsModalOpen(true);
+  };
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+    }
+    const handlePartnerFilter = (filtered: LogisticsPartner[]|null) => {
+        setFilteredPartners(filtered)
+    }
+
+  return (
+    <div>
+      <div className='flex justify-between items-center mb-4'>
+          <h2 className="text-2xl font-bold mb-4">Logistics Partners</h2>
+        <Button onClick={handleAddPartner}>Add Partner</Button>
+      </div>
+        <PartnerFilter partners={partners} onFilter={handlePartnerFilter} />
+      <PartnerTable partners={filteredPartners || partners || []} onEdit={handleEditPartner} />
+      <AddEditPartnerModal isOpen={isModalOpen} onClose={handleCloseModal} partner={selectedPartner} />
+    </div>
+  );
+};
+
+export default LogisticsPanel;
+Use code with caution.
+Tsx
+15.1. Partner Table (components/LogisticsPartners/PartnerTable.tsx)
+import React from 'react';
+import { LogisticsPartner } from '@/types';
+import { Button } from '../UI/Button';
+interface PartnerTableProps {
+  partners: LogisticsPartner[];
+  onEdit: (partner: LogisticsPartner) => void;
+}
+
+const PartnerTable: React.FC<PartnerTableProps> = ({ partners, onEdit }) => {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+        <thead>
+          <tr>
+            <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">ID</th>
+            <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Name</th>
+            <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Region</th>
+              <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Contact Details</th>
+            <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {partners.map((partner) => (
+            <tr key={partner.partner_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+              <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{partner.partner_id}</td>
+              <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{partner.name}</td>
+                <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{partner.region}</td>
+                <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{JSON.stringify(partner.contact_details)}</td>
+              <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">
+                  <Button size='sm' onClick={() => onEdit(partner)}>Edit</Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default PartnerTable;
+Use code with caution.
+Tsx
+15.2. Partner Filter (components/LogisticsPartners/PartnerFilter.tsx)
+import React, { useState, useEffect } from 'react';
+import { LogisticsPartner } from '@/types';
+import { Input } from '../UI/Input';
+
+interface PartnerFilterProps {
+  partners: LogisticsPartner[];
+    onFilter: (filtered: LogisticsPartner[] | null) => void;
+}
+const PartnerFilter: React.FC<PartnerFilterProps> = ({ partners, onFilter }) => {
+    const [nameFilter, setNameFilter] = useState('');
+    const [regionFilter, setRegionFilter] = useState('');
+    const [regionOptions, setRegionOptions] = useState<string[]>([]);
+    useEffect(() => {
+      if(partners){
+           const regions = [...new Set(partners.map(partner => partner.region).filter(Boolean))];
+           setRegionOptions(regions as string[]);
+      }
+    }, [partners]);
+
+    useEffect(() => {
+       if (partners) {
+            let filtered = partners;
+             if (nameFilter) {
+                filtered = filtered.filter(partner => partner.name.toLowerCase().includes(nameFilter.toLowerCase()));
+            }
+           if (regionFilter) {
+                filtered = filtered.filter(partner => partner.region === regionFilter);
+           }
+           onFilter(filtered.length > 0 ? filtered : null);
+       } else {
+          onFilter(null);
+       }
+    }, [nameFilter, regionFilter, partners, onFilter]);
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNameFilter(e.target.value);
+    };
+    const handleRegionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setRegionFilter(e.target.value)
+    }
+
+  return (
+    <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex-1">
+              <Input type="text" placeholder="Filter by name" value={nameFilter} onChange={handleNameChange} />
+          </div>
+        <div className="flex-1">
+           <select className='border rounded p-2 w-full bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)]'
+               value={regionFilter}
+               onChange={handleRegionChange}
+           >
+               <option value="">Filter by Region</option>
+               {regionOptions?.map(region => <option key={region} value={region}>{region}</option>)}
+           </select>
+        </div>
+    </div>
+  );
+};
+
+export default PartnerFilter;
+Use code with caution.
+Tsx
+15.3. Add/Edit Partner Modal (components/LogisticsPartners/AddEditPartnerModal.tsx)
+import React, { useState, useEffect } from 'react';
+import { Modal } from '../UI/Modal';
+import { Input } from '../UI/Input';
+import { Button } from '../UI/Button';
+import { LogisticsPartner } from '@/types';
+import apiFetch from '@/utils/api';
+
+interface AddEditPartnerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  partner: LogisticsPartner | null;
+}
+
+const AddEditPartnerModal: React.FC<AddEditPartnerModalProps> = ({ isOpen, onClose, partner }) => {
+  const [name, setName] = useState('');
+  const [region, setRegion] = useState('');
+  const [contactDetails, setContactDetails] = useState('{}');
+    const [isEdit, setIsEdit] = useState(false);
+
+  useEffect(() => {
+    if (partner) {
+      setIsEdit(true);
+      setName(partner.name);
+      setRegion(partner.region || '');
+      setContactDetails(JSON.stringify(partner.contact_details));
+    } else {
+      setIsEdit(false);
+      setName('');
+        setRegion('');
+      setContactDetails('{}');
+    }
+  }, [partner]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+      try {
+            const partnerData = {
+              name: name,
+              region: region,
+              contact_details: JSON.parse(contactDetails)
+            }
+        if(isEdit && partner){
+          await apiFetch(`/logistics-partners/${partner.partner_id}`, { method: 'PUT', body: partnerData})
+          alert('Logistics partner updated successfully!');
+        } else {
+          await apiFetch('/logistics-partners', { method: 'POST', body: partnerData})
+              alert('Logistics partner added successfully!');
+        }
+        onClose();
+    } catch (error:any) {
+        alert(error.message || 'Error saving logistics partner!');
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Logistics Partner' : 'Add Logistics Partner'}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+          <div>
+          <Input type="text" placeholder="Region" value={region} onChange={(e) => setRegion(e.target.value)} />
+          </div>
+        <div>
+          <Input type="text" placeholder="Contact Details (JSON)" value={contactDetails} onChange={(e) => setContactDetails(e.target.value)} />
+        </div>
+        <div className="flex justify-end">
+          <Button type="submit">{isEdit ? 'Update Partner' : 'Add Partner'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+export default AddEditPartnerModal;
+Use code with caution.
+Tsx
+16. Orders Panel (components/Orders/OrdersPanel.tsx)
+import React, { useState } from 'react';
+import OrderTable from './OrderTable';
+import OrderDetails from './OrderDetails';
+import { Order } from '@/types';
+import useFetch from '@/hooks/useFetch';
+import OrderFilter from './OrderFilter';
+
+const OrdersPanel: React.FC = () => {
+  const { data: orders, error, loading } = useFetch<Order[]>('/orders');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [filteredOrders, setFilteredOrders] = useState<Order[] | null>(null);
+  const handleOrderSelect = (order: Order) => {
+    setSelectedOrder(order);
+  };
+    if(loading){
+        return <div>Loading orders...</div>
+    }
+    if(error){
+        return <div>Error loading orders</div>
+    }
+    const handleOrderFilter = (filtered: Order[] | null) => {
+        setFilteredOrders(filtered);
+    }
+
+  return (
+    <div>
+        <div className='flex justify-between items-center mb-4'>
+            <h2 className="text-2xl font-bold mb-4">Orders</h2>
+        </div>
+      <OrderFilter orders={orders} onFilter={handleOrderFilter} />
+      <div className='flex flex-wrap gap-4'>
+          <div className='flex-1 overflow-x-auto'>
+               <OrderTable orders={filteredOrders || orders || []} onSelect={handleOrderSelect} />
+          </div>
+            {selectedOrder && <div className='flex-1'><OrderDetails order={selectedOrder} /></div> }
+        </div>
+    </div>
+  );
+};
+
+export default OrdersPanel;
+Use code with caution.
+Tsx
+16.1. Order Table (components/Orders/OrderTable.tsx)
+import React from 'react';
+import { Order } from '@/types';
+import { formatDate } from '../common';
+interface OrderTableProps {
+  orders: Order[];
+  onSelect: (order: Order) => void;
+}
+
+const OrderTable: React.FC<OrderTableProps> = ({ orders, onSelect }) => {
+  return (
+      <div className="overflow-x-auto">
+          <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+              <thead>
+                <tr>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Order ID</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Date</th>
+                    <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Customer Id</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Status</th>
+                  <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Total Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.order_id}
+                      className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => onSelect(order)}
+                   >
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.order_id}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(order.created_at)}</td>
+                      <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.customer_id}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{order.status}</td>
+                    <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${order.total_amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+          </table>
+      </div>
+  );
+};
+
+export default OrderTable;
+Use code with caution.
+Tsx
+16.2. Order Filter (components/Orders/OrderFilter.tsx)
+import React, { useState, useEffect } from 'react';
+import { Order } from '@/types';
+import { Input } from '../UI/Input';
+interface OrderFilterProps {
+    orders: Order[];
+    onFilter: (filtered: Order[] | null) => void;
+}
+const OrderFilter: React.FC<OrderFilterProps> = ({ orders, onFilter }) => {
+    const [customerIdFilter, setCustomerIdFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [statusOptions, setStatusOptions] = useState<string[]>([]);
+
+    useEffect(() => {
+        if(orders){
+             const statuses = [...new Set(orders.map(order => order.status))];
+            setStatusOptions(statuses);
+        }
+    }, [orders]);
+
+    useEffect(() => {
+        if (orders){
+            let filtered = orders;
+             if (customerIdFilter) {
+                filtered = filtered.filter(order => order.customer_id?.toString().includes(customerIdFilter));
+             }
+             if (statusFilter){
+                 filtered = filtered.filter(order => order.status === statusFilter)
+             }
+             onFilter(filtered.length > 0 ? filtered : null);
+        } else {
+            onFilter(null);
+        }
+
+    }, [customerIdFilter, statusFilter, orders, onFilter]);
+
+
+    const handleCustomerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCustomerIdFilter(e.target.value)
+    }
+    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setStatusFilter(e.target.value)
+    };
+
+  return (
+    <div className="flex flex-wrap gap-4 mb-4">
+        <div className='flex-1'>
+          <Input type="text" placeholder="Filter by customer id" value={customerIdFilter} onChange={handleCustomerIdChange} />
+        </div>
+        <div className='flex-1'>
+           <select className='border rounded p-2 w-full bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)]'
+               value={statusFilter}
+               onChange={handleStatusChange}
+           >
+               <option value="">Filter by Status</option>
+             {statusOptions?.map(status => <option key={status} value={status}>{status}</option>)}
+           </select>
+        </div>
+
+    </div>
+  );
+};
+
+export default OrderFilter;
+Use code with caution.
+Tsx
+16.3. Order Details (components/Orders/OrderDetails.tsx)
+import React, { useState } from 'react';
+import { Order, OrderItem } from '@/types';
+import useFetch from '@/hooks/useFetch';
+import { Button } from '../UI/Button';
+import apiFetch from '@/utils/api';
+import { formatDate } from '../common';
+
+interface OrderDetailsProps {
+  order: Order;
+}
+
+const OrderDetails: React.FC<OrderDetailsProps> = ({ order }) => {
+  const { data: orderItems, error, loading } = useFetch<OrderItem[]>(`/order-items?order_id=${order.order_id}`);
+    const [status, setStatus] = useState(order.status);
+
+    const handleChangeStatus = async () => {
+        try {
+            await apiFetch(`/orders/${order.order_id}`, { method: 'PUT', body: { status: status } });
+            alert('Order status updated successfully');
+        } catch (error:any){
+            alert(error.message || 'Error updating order status.');
+        }
+    };
+
+    if(loading){
+        return <div>Loading Order Items...</div>;
+    }
+    if (error) {
+        return <div>Error loading order items</div>;
+    }
+
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+      <h3 className="text-xl font-semibold mb-4">Order Details</h3>
+      <p><span className='font-semibold'>Order ID:</span> {order.order_id}</p>
+        <p><span className='font-semibold'>Order Date:</span> {formatDate(order.created_at)}</p>
+          {order.customer_id && <p><span className='font-semibold'>Customer ID:</span> {order.customer_id}</p>}
+        <div className='flex gap-2'>
+          <label className='font-semibold' htmlFor="status">Status:</label>
+            <select className='border rounded p-2 bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)]'
+                name="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+            >
+                <option value='pending'>Pending</option>
+                <option value='processing'>Processing</option>
+                 <option value='shipped'>Shipped</option>
+                <option value='delivered'>Delivered</option>
+                <option value='cancelled'>Cancelled</option>
+            </select>
+          <Button size="sm" onClick={handleChangeStatus}>Update Status</Button>
+        </div>
+
+      <p><span className='font-semibold'>Total Amount:</span> ${order.total_amount}</p>
+
+      <h4 className="text-lg font-semibold mt-4 mb-2">Order Items</h4>
+        {orderItems && orderItems.length > 0 ?
+            <div className="overflow-x-auto">
+            <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+            <thead>
+                <tr>
+                    <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Item ID</th>
+                    <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Product ID</th>
+                    <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Quantity</th>
+                    <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Price</th>
+                </tr>
+                </thead>
+              <tbody>
+                {orderItems.map(item => (
+                    <tr key={item.order_item_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{item.order_item_id}</td>
+                        <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{item.product_id}</td>
+                        <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{item.quantity}</td>
+                        <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${item.price}</td>
+                    </tr>
+                ))}
+              </tbody>
+           </table>
+             </div>
+             : <p>No items found for this order.</p>}
+    </div>
+  );
+};
+
+export default OrderDetails;
+Use code with caution.
+Tsx
+17. Sales Reports Panel (components/SalesReports/SalesReportsPanel.tsx)
+import React, { useState } from 'react';
+import ReportGenerationForm from './ReportGenerationForm';
+import ReportTable from './ReportTable';
+import ReportChart from './ReportChart';
+import { SalesReport } from '@/types';
+import useFetch from '@/hooks/useFetch';
+const SalesReportsPanel: React.FC = () => {
+    const { data: reports, error, loading } = useFetch<SalesReport[]>('/sales-reports');
+  const [generatedReport, setGeneratedReport] = useState<SalesReport | null>(null);
+
+    if(loading){
+        return <div>Loading sales reports...</div>
+    }
+    if (error) {
+      return <div>Error loading sales reports.</div>;
+    }
+
+    const handleReportGenerated = (report: SalesReport) => {
+        setGeneratedReport(report);
+    }
+
+  return (
+    <div>
+          <h2 className="text-2xl font-bold mb-4">Sales Reports</h2>
+          <ReportGenerationForm onReportGenerated={handleReportGenerated} />
+
+          <div className="mt-6">
+             <ReportTable reports={reports || []} />
+          </div>
+        { generatedReport && <div className="mt-6">
+            <ReportChart report={generatedReport} />
+          </div>}
+    </div>
+  );
+};
+
+export default SalesReportsPanel;
+``````tsx
+import React, { useState } from 'react';
+import { Input } from '../UI/Input';
+import { Button } from '../UI/Button';
+import apiFetch from '@/utils/api';
+import { SalesReport } from '@/types';
+
+17.1. Report Generation Form (components/SalesReports/ReportGenerationForm.tsx)
+import React, { useState } from 'react';
+import { Input } from '../UI/Input';
+import { Button } from '../UI/Button';
+import apiFetch from '@/utils/api';
+import { SalesReport } from '@/types';
+
+interface ReportGenerationFormProps {
+    onReportGenerated: (report: SalesReport) => void;
+}
+
+const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onReportGenerated }) => {
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+      try {
+          const reportData:SalesReport = await apiFetch('/sales-reports', {
+              method: 'POST',
+              body: {
+                date_range: {
+                  start: startDate,
+                  end: endDate
+                }
+              }
+          })
+          onReportGenerated(reportData);
+          alert('Report generated successfully!');
+      } catch (error:any) {
+          alert(error.message || 'Error generating report');
+      }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-4 mb-4">
+          <div className='flex-1'>
+            <Input type="date" placeholder="Start Date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+          </div>
+          <div className='flex-1'>
+           <Input type="date" placeholder="End Date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+          </div>
+      <Button type="submit">Generate Report</Button>
+    </form>
+  );
+};
+
+export default ReportGenerationForm;
+Use code with caution.
+Tsx
+17.2. Report Table (components/SalesReports/ReportTable.tsx)
+import React from 'react';
+import { SalesReport } from '@/types';
+import { formatDate } from '../common';
+
+interface ReportTableProps {
+  reports: SalesReport[];
+}
+
+const ReportTable: React.FC<ReportTableProps> = ({ reports }) => {
+  return (
+      <div className="overflow-x-auto">
+          <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Report ID</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Date Range</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Total Sales</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">Orders Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map(report => (
+                <tr key={report.report_id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{report.report_id}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{formatDate(report.date_range?.start)} - {formatDate(report.date_range?.end)}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">${report.total_sales}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{report.orders_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+      </div>
+  );
+};
+
+export default ReportTable;
+Use code with caution.
+Tsx
+17.3. Report Chart (components/SalesReports/ReportChart.tsx)
+import React from 'react';
+import { SalesReport } from '@/types';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+interface ReportChartProps {
+    report: SalesReport
+}
+
+const ReportChart: React.FC<ReportChartProps> = ({ report }) => {
+    const chartData = {
+        labels: ['Sales', 'Orders'],
+        datasets: [
+            {
+              label: 'Report Summary',
+                data: [report.total_sales, report.orders_count],
+              backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
+              borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
+              borderWidth: 1,
+            },
+        ],
+    }
+  const options = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top' as const,
+            },
+            title: {
+              display: true,
+              text: 'Sales Report Summary',
+          },
+       },
+  };
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+     <Bar data={chartData} options={options} />
+    </div>
+  );
+};
+
+export default ReportChart;
+Use code with caution.
+Tsx
+18. UI Components (components/UI)
+These are reusable UI components used throughout the admin panel.
+
+18.1. Button (components/UI/Button.tsx)
+import React, { ButtonHTMLAttributes } from 'react';
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+    size?: 'sm' | 'md' | 'lg';
+}
+
+const Button: React.FC<ButtonProps> = ({ children, onClick, type = 'button', size = 'md' }) => {
+  let paddingClasses;
+  let fontSizeClasses;
+
+  switch (size) {
+      case 'sm':
+          paddingClasses = 'py-1 px-2';
+          fontSizeClasses = 'text-sm';
+          break;
+      case 'lg':
+          paddingClasses = 'py-3 px-6';
+          fontSizeClasses = 'text-lg';
+          break;
+      case 'md':
+      default:
+           paddingClasses = 'py-2 px-4';
+           fontSizeClasses = 'text-base';
+          break;
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      type={type}
+      className={`bg-[var(--primary-accent)] text-white  rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 ${paddingClasses} ${fontSizeClasses}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+export { Button };
+Use code with caution.
+Tsx
+18.2. Input (components/UI/Input.tsx)
+import React, { InputHTMLAttributes } from 'react';
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {}
+
+const Input: React.FC<InputProps> = ({ ...props }) => {
+  return (
+    <input
+      {...props}
+      className="w-full p-2 border rounded bg-[var(--card-light)] text-[var(--text-light)] dark:bg-[var(--card-dark)] dark:text-[var(--text-dark)] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+    />
+  );
+};
+
+export { Input };
+Use code with caution.
+Tsx
+18.3. Modal (components/UI/Modal.tsx)
+import React from 'react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  title?: string;
+}
+
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-[var(--card-light)] dark:bg-[var(--card-dark)] rounded shadow-lg w-full max-w-md p-6">
+          <div className='flex justify-between items-center mb-4'>
+            <h2 className="text-xl font-semibold">{title}</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 focus:outline-none">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export { Modal };
+Use code with caution.
+Tsx
+18.4. Table (components/UI/Table.tsx)
+This is already included in other components, we could make a generic one for reuse
+
+import React from 'react';
+interface TableProps {
+    headers: string[],
+    rows: string[][]
+}
+
+const Table:React.FC<TableProps> = ({headers, rows}) => {
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+                <thead>
+                <tr>
+                    {headers.map(header => <th key={header} className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-left">{header}</th>)}
+                </tr>
+                </thead>
+                <tbody>
+                {rows.map((row, index) =>
+                    <tr key={index} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                        {row.map((cell, index) => <td key={index} className="py-2 px-4 border-b border-gray-200 dark:border-gray-700">{cell}</td>)}
+                    </tr>
+                )}
+                </tbody>
+            </table>
+        </div>
+    )
+}
+export { Table };
+Use code with caution.
+Tsx
+18.5. Pagination (components/UI/Pagination.tsx)
+Implementation not included but can be added to the Table Component if needed.
+
+import React from 'react';
+
+interface PaginationProps {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+}
+
+const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange }) => {
+  // Generate page numbers
+  const pageNumbers = [];
+  for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(i);
+  }
+    const handlePageClick = (page:number) => {
+        onPageChange(page)
+    }
+  return (
+    <div className="flex justify-center mt-4">
+        { pageNumbers &&
+            <ul className="flex space-x-2">
+                {pageNumbers.map((page) => (
+                <li key={page}>
+                  <button
+                    onClick={()=> handlePageClick(page)}
+                    className={`px-3 py-1 rounded ${currentPage === page ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                  >
+                    {page}
+                  </button>
+                </li>
+                ))}
+            </ul>
+        }
+    </div>
+  );
+};
+
+export { Pagination };
+Use code with caution.
+Tsx
+19. Implementation Notes
+Data Fetching: Use the useFetch hook for all API calls.
+
+Error Handling: Implement proper error handling for all API requests and display user-friendly messages.
+
+Form Validation: Use a library like Zod for schema validation in forms.
+
+Accessibility: Ensure all components are accessible (proper contrast, keyboard navigation, etc.).
+
+Testing: Write unit and integration tests for core functionality.
+
+Security: Make sure to implement necessary security measures in the backend API such as input validation, authorization, authentication etc.
+
+20. Further Enhancements
+User Authentication: Implement login and authentication for admin users.
+
+Real-time Updates: Explore using WebSockets for real-time data updates.
+
+Customizable Dashboard: Allow admins to customize the dashboard layout and metrics.
+
+More Advanced Reporting: Add more complex sales report options (e.g., by category, by customer).
+
+Data Export: Add options to export data to CSV or other formats.
+
+Internationalization: Support multiple languages.
+
+This is a comprehensive design document that should provide a solid starting point for building your admin panel. Remember to break down each component into smaller, manageable tasks, and test frequently during development.

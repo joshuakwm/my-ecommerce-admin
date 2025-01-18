@@ -1,0 +1,203 @@
+$ PGPASSWORD=admin123 psql -U admin -h localhost -d ecommerce_db -c '\dt'
+               List of relations
+ Schema |         Name         | Type  | Owner 
+--------+----------------------+-------+-------
+ public | blog_authors         | table | admin
+ public | blog_categories      | table | admin
+ public | blog_comments        | table | admin
+ public | blog_posts           | table | admin
+ public | customers            | table | admin
+ public | logistics_partners   | table | admin
+ public | order_items          | table | admin
+ public | orders               | table | admin
+ public | products             | table | admin
+ public | sales_reports        | table | admin
+ public | subscription_history | table | admin
+(11 rows)
+
+pete@pop-os:~/cline/eshop
+$ PGPASSWORD=admin123 psql -U admin -h localhost -d ecommerce_db -Atc "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'" | while read table; do
+  echo "Structure of table: $table"
+  PGPASSWORD=admin123 psql -U admin -h localhost -d ecommerce_db -c "\d $table"
+  echo "--------------------------------------------------"
+done
+Structure of table: logistics_partners
+                                          Table "public.logistics_partners"
+     Column      |       Type        | Collation | Nullable |                        Default                         
+-----------------+-------------------+-----------+----------+--------------------------------------------------------
+ partner_id      | integer           |           | not null | nextval('logistics_partners_partner_id_seq'::regclass)
+ name            | character varying |           | not null | 
+ region          | character varying |           |          | 
+ contact_details | jsonb             |           |          | 
+Indexes:
+    "logistics_partners_pkey" PRIMARY KEY, btree (partner_id)
+
+--------------------------------------------------
+Structure of table: orders
+                                            Table "public.orders"
+    Column    |            Type             | Collation | Nullable |                 Default                  
+--------------+-----------------------------+-----------+----------+------------------------------------------
+ order_id     | integer                     |           | not null | nextval('orders_order_id_seq'::regclass)
+ customer_id  | integer                     |           |          | 
+ status       | character varying           |           |          | 
+ total_amount | numeric                     |           | not null | 
+ created_at   | timestamp without time zone |           |          | now()
+Indexes:
+    "orders_pkey" PRIMARY KEY, btree (order_id)
+Foreign-key constraints:
+    "orders_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+Referenced by:
+    TABLE "order_items" CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY (order_id) REFERENCES orders(order_id)
+
+--------------------------------------------------
+Structure of table: sales_reports
+                                   Table "public.sales_reports"
+    Column    |  Type   | Collation | Nullable |                     Default                      
+--------------+---------+-----------+----------+--------------------------------------------------
+ report_id    | integer |           | not null | nextval('sales_reports_report_id_seq'::regclass)
+ date_range   | jsonb   |           | not null | 
+ total_sales  | numeric |           |          | 
+ orders_count | integer |           |          | 
+Indexes:
+    "sales_reports_pkey" PRIMARY KEY, btree (report_id)
+
+--------------------------------------------------
+Structure of table: order_items
+                                     Table "public.order_items"
+    Column     |  Type   | Collation | Nullable |                      Default                       
+---------------+---------+-----------+----------+----------------------------------------------------
+ order_item_id | integer |           | not null | nextval('order_items_order_item_id_seq'::regclass)
+ order_id      | integer |           |          | 
+ product_id    | integer |           |          | 
+ quantity      | integer |           | not null | 
+ price         | numeric |           | not null | 
+Indexes:
+    "order_items_pkey" PRIMARY KEY, btree (order_item_id)
+Foreign-key constraints:
+    "order_items_order_id_fkey" FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    "order_items_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(product_id)
+
+--------------------------------------------------
+Structure of table: customers
+                                                 Table "public.customers"
+       Column        |            Type             | Collation | Nullable |                    Default                     
+---------------------+-----------------------------+-----------+----------+------------------------------------------------
+ customer_id         | integer                     |           | not null | nextval('customers_customer_id_seq'::regclass)
+ name                | character varying           |           | not null | 
+ email               | character varying           |           | not null | 
+ phone               | character varying           |           |          | 
+ address             | jsonb                       |           |          | 
+ registration_date   | timestamp without time zone |           |          | now()
+ newsletter_opt_in   | boolean                     |           |          | false
+ subscription_status | character varying           |           |          | 'unsubscribed'::character varying
+Indexes:
+    "customers_pkey" PRIMARY KEY, btree (customer_id)
+    "customers_email_idx" btree (email)
+    "customers_email_key" UNIQUE CONSTRAINT, btree (email)
+    "idx_customers_email" btree (email)
+Referenced by:
+    TABLE "orders" CONSTRAINT "orders_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+    TABLE "subscription_history" CONSTRAINT "subscription_history_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+
+--------------------------------------------------
+Structure of table: products
+                                              Table "public.products"
+     Column     |            Type             | Collation | Nullable |                   Default                    
+----------------+-----------------------------+-----------+----------+----------------------------------------------
+ product_id     | integer                     |           | not null | nextval('products_product_id_seq'::regclass)
+ name           | character varying           |           | not null | 
+ category       | character varying           |           |          | 
+ price          | numeric                     |           | not null | 
+ stock_quantity | integer                     |           |          | 0
+ description    | text                        |           |          | 
+ created_at     | timestamp without time zone |           |          | now()
+ image_url      | text                        |           |          | 
+ featured       | boolean                     |           |          | false
+Indexes:
+    "products_pkey" PRIMARY KEY, btree (product_id)
+    "idx_products_category" btree (category)
+    "idx_products_image_url" btree (image_url)
+    "idx_products_name" btree (name)
+Referenced by:
+    TABLE "order_items" CONSTRAINT "order_items_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(product_id)
+
+--------------------------------------------------
+Structure of table: subscription_history
+                                             Table "public.subscription_history"
+   Column    |            Type             | Collation | Nullable |                         Default                          
+-------------+-----------------------------+-----------+----------+----------------------------------------------------------
+ history_id  | integer                     |           | not null | nextval('subscription_history_history_id_seq'::regclass)
+ customer_id | integer                     |           |          | 
+ status      | character varying           |           | not null | 
+ changed_at  | timestamp without time zone |           |          | now()
+Indexes:
+    "subscription_history_pkey" PRIMARY KEY, btree (history_id)
+Foreign-key constraints:
+    "subscription_history_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+
+--------------------------------------------------
+Structure of table: blog_categories
+                                        Table "public.blog_categories"
+   Column    |       Type        | Collation | Nullable |                       Default                        
+-------------+-------------------+-----------+----------+------------------------------------------------------
+ category_id | integer           |           | not null | nextval('blog_categories_category_id_seq'::regclass)
+ name        | character varying |           | not null | 
+Indexes:
+    "blog_categories_pkey" PRIMARY KEY, btree (category_id)
+    "blog_categories_name_key" UNIQUE CONSTRAINT, btree (name)
+Referenced by:
+    TABLE "blog_posts" CONSTRAINT "blog_posts_category_id_fkey" FOREIGN KEY (category_id) REFERENCES blog_categories(category_id)
+
+--------------------------------------------------
+Structure of table: blog_authors
+                                      Table "public.blog_authors"
+  Column   |       Type        | Collation | Nullable |                     Default                     
+-----------+-------------------+-----------+----------+-------------------------------------------------
+ author_id | integer           |           | not null | nextval('blog_authors_author_id_seq'::regclass)
+ name      | character varying |           | not null | 
+ email     | character varying |           | not null | 
+ bio       | text              |           |          | 
+Indexes:
+    "blog_authors_pkey" PRIMARY KEY, btree (author_id)
+    "blog_authors_email_key" UNIQUE CONSTRAINT, btree (email)
+Referenced by:
+    TABLE "blog_posts" CONSTRAINT "blog_posts_author_id_fkey" FOREIGN KEY (author_id) REFERENCES blog_authors(author_id)
+
+--------------------------------------------------
+Structure of table: blog_posts
+                                            Table "public.blog_posts"
+    Column    |            Type             | Collation | Nullable |                   Default                   
+--------------+-----------------------------+-----------+----------+---------------------------------------------
+ post_id      | integer                     |           | not null | nextval('blog_posts_post_id_seq'::regclass)
+ title        | character varying           |           | not null | 
+ content      | text                        |           | not null | 
+ excerpt      | text                        |           |          | 
+ author_id    | integer                     |           |          | 
+ category_id  | integer                     |           |          | 
+ published_at | timestamp without time zone |           |          | now()
+ updated_at   | timestamp without time zone |           |          | now()
+Indexes:
+    "blog_posts_pkey" PRIMARY KEY, btree (post_id)
+Foreign-key constraints:
+    "blog_posts_author_id_fkey" FOREIGN KEY (author_id) REFERENCES blog_authors(author_id)
+    "blog_posts_category_id_fkey" FOREIGN KEY (category_id) REFERENCES blog_categories(category_id)
+Referenced by:
+    TABLE "blog_comments" CONSTRAINT "blog_comments_post_id_fkey" FOREIGN KEY (post_id) REFERENCES blog_posts(post_id)
+
+--------------------------------------------------
+Structure of table: blog_comments
+                                             Table "public.blog_comments"
+    Column    |            Type             | Collation | Nullable |                      Default                      
+--------------+-----------------------------+-----------+----------+---------------------------------------------------
+ comment_id   | integer                     |           | not null | nextval('blog_comments_comment_id_seq'::regclass)
+ post_id      | integer                     |           |          | 
+ author_name  | character varying           |           | not null | 
+ author_email | character varying           |           | not null | 
+ content      | text                        |           | not null | 
+ commented_at | timestamp without time zone |           |          | now()
+Indexes:
+    "blog_comments_pkey" PRIMARY KEY, btree (comment_id)
+Foreign-key constraints:
+    "blog_comments_post_id_fkey" FOREIGN KEY (post_id) REFERENCES blog_posts(post_id)
+
+--------------------------------------------------
