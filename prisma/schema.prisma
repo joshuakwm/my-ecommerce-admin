@@ -1,0 +1,80 @@
+model Customer {
+  customer_id        Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  phone             String?
+  address           Json?
+  registration_date DateTime  @default(now())
+  newsletter_opt_in Boolean   @default(false)
+  subscription_status String  @default("unsubscribed")
+  orders            Order[]
+}
+
+model Product {
+  product_id     Int      @id @default(autoincrement())
+  name           String
+  category       String?
+  price          Float
+  stock_quantity Int      @default(0)
+  description    String?
+  created_at     DateTime @default(now())
+  featured       Boolean  @default(false)
+  image_url      String?
+  orderItems     OrderItem[]
+}
+
+model Order {
+  order_id     Int      @id @default(autoincrement())
+  customer_id  Int?
+  customer     Customer? @relation(fields: [customer_id], references: [customer_id])
+  status       String
+  total_amount Float
+  created_at   DateTime @default(now())
+  orderItems   OrderItem[]
+}
+
+model OrderItem {
+  order_item_id Int      @id @default(autoincrement())
+  order_id      Int
+  product_id    Int
+  quantity      Int
+  price         Float
+  order         Order   @relation(fields: [order_id], references: [order_id])
+  product       Product @relation(fields: [product_id], references: [product_id])
+}
+
+model BlogPost {
+  post_id      Int      @id @default(autoincrement())
+  title        String
+  content      String
+  author_id    Int
+  author       BlogAuthor @relation(fields: [author_id], references: [author_id])
+  category_id  Int
+  category     BlogCategory @relation(fields: [category_id], references: [category_id])
+  published_at DateTime @default(now())
+  comments     BlogComment[]
+}
+
+model BlogAuthor {
+  author_id Int    @id @default(autoincrement())
+  name      String
+  email     String @unique
+  bio       String?
+  posts     BlogPost[]
+}
+
+model BlogCategory {
+  category_id Int    @id @default(autoincrement())
+  name        String @unique
+  posts       BlogPost[]
+}
+
+model BlogComment {
+  comment_id   Int      @id @default(autoincrement())
+  post_id      Int
+  post         BlogPost @relation(fields: [post_id], references: [post_id])
+  author_name  String
+  author_email String
+  content      String
+  commented_at DateTime @default(now())
+}
