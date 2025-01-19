@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        .button {
+            display: block;
+            width: 200px;
+            padding: 10px;
+            margin: 10px;
+            text-align: center;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Panel</h1>
+        <a href="/admin/customers" class="button">Customers</a>
+        <a href="/admin/dashboard" class="button">Dashboard</a>
+        <a href="/admin/logistics" class="button">Logistics</a>
+        <a href="/admin/logistics_partners" class="button">Logistics Partners</a>
+        <a href="/admin/orders" class="button">Orders</a>
+        <a href="/admin/products" class="button">Products</a>
+        <a href="/admin/reports" class="button">Reports</a>
+        <a href="/admin/sales_reports" class="button">Sales Reports</a>
+    </div>
+</body>
+</html>
